@@ -1,0 +1,2516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="KROWD GUIDE">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Know Before You Go. Get Home Safe. The future of nightlife navigation.">
+    <meta name="view-transition" content="same-origin">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:;">
+    <title>KROWD GUIDE</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap" rel="stylesheet">
+    
+    <!-- Frameworks (deferred for performance) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
+    <script defer src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script defer src="https://unpkg.com/gsap@3.12.5/dist/Draggable.min.js"></script>
+    <script defer src="https://unpkg.com/gsap@3.12.5/dist/InertiaPlugin.min.js"></script>
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+
+    <style>
+/* ============================================
+   KROWD GUIDE v7.1 - Hybrid Navigation UI
+   Apple Maps + Swarm + Eventbrite Synthesis
+   ============================================ */
+
+:root {
+    /* iOS 26 System Colors */
+    --system-blue: #0A84FF;
+    --system-green: #30D158;
+    --system-indigo: #5E5CE6;
+    --system-orange: #FF9F0A;
+    --system-pink: #FF375F;
+    --system-purple: #BF5AF2;
+    --system-red: #FF453A;
+    --system-teal: #64D2FF;
+    --system-yellow: #FFD60A;
+    --system-gray: #8E8E93;
+    --system-gray2: #636366;
+    --system-gray3: #48484A;
+    --system-gray4: #3A3A3C;
+    --system-gray5: #2C2C2E;
+    --system-gray6: #1C1C1E;
+    
+    /* Backgrounds */
+    --bg-primary: #000000;
+    --bg-secondary: #1C1C1E;
+    --bg-tertiary: #2C2C2E;
+    --bg-elevated: #3A3A3C;
+    
+    /* Labels */
+    --label-primary: #FFFFFF;
+    --label-secondary: rgba(235, 235, 245, 0.6);
+    --label-tertiary: rgba(235, 235, 245, 0.3);
+    --label-quaternary: rgba(235, 235, 245, 0.18);
+    
+    /* Liquid Glass Materials */
+    --glass-ultra: rgba(20, 20, 20, 0.6);
+    --glass-regular: rgba(30, 30, 30, 0.75);
+    --glass-thick: rgba(44, 44, 46, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-border-light: rgba(255, 255, 255, 0.15);
+    
+    /* Spring Physics (iOS Native) */
+    --spring-default: cubic-bezier(0.25, 1, 0.5, 1);
+    --spring-snappy: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --spring-bouncy: cubic-bezier(0.4, 1.4, 0.6, 1);
+    --spring-fluid: cubic-bezier(0.32, 0.72, 0, 1);
+    --spring-elastic: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    
+    /* Blur Levels */
+    --blur-ultra: 80px;
+    --blur-high: 50px;
+    --blur-medium: 30px;
+    --blur-low: 20px;
+    --blur-subtle: 12px;
+    
+    /* Safe Areas */
+    --safe-top: env(safe-area-inset-top, 20px);
+    --safe-bottom: env(safe-area-inset-bottom, 20px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    
+    /* Sheet Dimensions */
+    --sheet-radius: 24px;
+    --sheet-collapsed: 200px;
+    --sheet-half: 50vh;
+    --sheet-full: 90vh;
+}
+
+@view-transition { navigation: auto; }
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    background: var(--bg-primary);
+    color: var(--label-primary);
+    overflow: hidden;
+    height: 100dvh;
+    width: 100vw;
+    touch-action: manipulation;
+    font-feature-settings: 'cv11' 1;
+}
+
+/* Accessibility: Focus States */
+*:focus-visible {
+    outline: 2px solid var(--system-blue);
+    outline-offset: 2px;
+}
+
+/* Allow text selection for accessibility */
+.venue-name, .venue-meta, .detail-title, .detail-subtitle {
+    user-select: text;
+}
+
+/* ============================================
+   SPLASH SCREEN
+   ============================================ */
+#splash {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-primary);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#splash.hidden {
+    display: none;
+}
+
+#particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--system-blue);
+    border-radius: 50%;
+    opacity: 0;
+    filter: blur(1px);
+}
+
+#splashLogo {
+    z-index: 1;
+    opacity: 0;
+    transform: scale(0.8);
+}
+
+#splashTagline {
+    z-index: 1;
+    color: var(--label-secondary);
+    font-size: 15px;
+    font-weight: 500;
+    margin-top: 16px;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+#progressContainer {
+    z-index: 1;
+    margin-top: 48px;
+    width: 200px;
+    opacity: 0;
+}
+
+#progressBar {
+    height: 4px;
+    background: var(--system-gray4);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+#progressFill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--system-blue), var(--system-teal));
+    border-radius: 2px;
+    transition: width 0.4s var(--spring-fluid);
+}
+
+#progressText {
+    font-size: 12px;
+    color: var(--label-tertiary);
+    text-align: center;
+    margin-top: 12px;
+}
+
+/* ============================================
+   MAP LAYER
+   ============================================ */
+#map {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 1s var(--spring-fluid);
+}
+
+#map.visible {
+    opacity: 1;
+}
+
+.leaflet-container {
+    background: var(--bg-primary) !important;
+    font-family: inherit;
+}
+
+.leaflet-control-attribution {
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--label-tertiary) !important;
+    font-size: 9px !important;
+    border-radius: 4px 0 0 0;
+    padding: 2px 6px !important;
+}
+
+.leaflet-control-attribution a {
+    color: var(--label-secondary) !important;
+}
+
+/* User Location Marker */
+.user-marker {
+    width: 24px;
+    height: 24px;
+    background: var(--system-blue);
+    border: 3px solid white;
+    border-radius: 50%;
+    box-shadow: 0 4px 16px rgba(10, 132, 255, 0.5);
+    position: relative;
+}
+
+.user-marker::before {
+    content: '';
+    position: absolute;
+    inset: -16px;
+    border: 2px solid var(--system-blue);
+    border-radius: 50%;
+    animation: userPulse 3s var(--spring-default) infinite;
+    opacity: 0;
+}
+
+@keyframes userPulse {
+    0% { transform: scale(0.5); opacity: 0.8; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Swarm-Style Smart Pins */
+.venue-marker {
+    transition: transform 0.3s var(--spring-bouncy), z-index 0s;
+}
+
+.venue-marker:hover,
+.venue-marker.selected {
+    transform: scale(1.3) !important;
+    z-index: 10000 !important;
+}
+
+.marker-pin {
+    width: 48px;
+    height: 48px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2.5px solid white;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s var(--spring-snappy);
+    background: var(--glass-thick);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.marker-pin.low {
+    background: linear-gradient(135deg, rgba(48, 209, 88, 0.95), rgba(48, 209, 88, 0.75));
+    border-color: rgba(48, 209, 88, 0.8);
+    box-shadow: 0 6px 24px rgba(48, 209, 88, 0.4);
+}
+
+.marker-pin.mid {
+    background: linear-gradient(135deg, rgba(255, 159, 10, 0.95), rgba(255, 159, 10, 0.75));
+    border-color: rgba(255, 159, 10, 0.8);
+    box-shadow: 0 6px 24px rgba(255, 159, 10, 0.4);
+}
+
+.marker-pin.high {
+    background: linear-gradient(135deg, rgba(255, 69, 58, 0.95), rgba(255, 69, 58, 0.75));
+    border-color: rgba(255, 69, 58, 0.8);
+    box-shadow: 0 6px 24px rgba(255, 69, 58, 0.4);
+}
+
+.marker-pin.transport {
+    background: linear-gradient(135deg, var(--system-blue), var(--system-teal));
+    border-color: rgba(10, 132, 255, 0.8);
+}
+
+.marker-pin.safety {
+    background: linear-gradient(135deg, var(--system-indigo), var(--system-purple));
+    border-color: rgba(94, 92, 230, 0.8);
+}
+
+.marker-emoji {
+    transform: rotate(45deg);
+    font-size: 22px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* Marker Clusters */
+.marker-cluster {
+    background: var(--glass-thick);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 2px solid var(--system-blue);
+    border-radius: 50%;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(10, 132, 255, 0.3);
+}
+
+.marker-cluster-small {
+    width: 36px;
+    height: 36px;
+    border-color: var(--system-green);
+}
+
+.marker-cluster-medium {
+    width: 44px;
+    height: 44px;
+    border-color: var(--system-orange);
+}
+
+.marker-cluster-large {
+    width: 52px;
+    height: 52px;
+    border-color: var(--system-red);
+}
+
+/* ============================================
+   APPLE MAPS FLOATING SEARCH BAR
+   ============================================ */
+#searchBar {
+    position: fixed;
+    top: calc(var(--safe-top) + 12px);
+    left: 16px;
+    right: 16px;
+    height: 52px;
+    z-index: 100;
+    background: var(--glass-regular);
+    backdrop-filter: blur(var(--blur-high));
+    -webkit-backdrop-filter: blur(var(--blur-high));
+    border: 1px solid var(--glass-border-light);
+    border-radius: 26px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transform: translateY(-60px);
+    pointer-events: none;
+}
+
+#searchBar.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+#searchIcon {
+    color: var(--system-gray);
+    font-size: 18px;
+    margin-right: 12px;
+}
+
+#searchInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--label-primary);
+    font-size: 17px;
+    font-weight: 500;
+    font-family: inherit;
+    outline: none;
+}
+
+#searchInput::placeholder {
+    color: var(--label-tertiary);
+}
+
+#searchWeather {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#weatherIcon {
+    font-size: 16px;
+}
+
+#weatherTemp {
+    color: var(--label-primary);
+}
+
+/* ============================================
+   FILTER ROW (Quick Toggles)
+   ============================================ */
+#filterRow {
+    position: fixed;
+    top: calc(var(--safe-top) + 76px);
+    left: 0;
+    right: 0;
+    z-index: 90;
+    padding: 0 16px;
+    opacity: 0;
+    transform: translateY(-40px);
+    pointer-events: none;
+}
+
+#filterRow.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+#filterScroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 4px 4px 12px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#filterScroll::-webkit-scrollbar {
+    display: none;
+}
+
+.filter-chip {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    background: var(--glass-regular);
+    backdrop-filter: blur(var(--blur-medium));
+    -webkit-backdrop-filter: blur(var(--blur-medium));
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    color: var(--label-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s var(--spring-snappy);
+    user-select: none;
+}
+
+.filter-chip:hover {
+    background: var(--glass-thick);
+}
+
+.filter-chip.active {
+    background: var(--system-blue);
+    color: white;
+    border-color: transparent;
+    transform: scale(1.05);
+    box-shadow: 0 8px 24px rgba(10, 132, 255, 0.35);
+}
+
+.filter-chip .count {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* ============================================
+   MAP CONTROLS (Right Side)
+   ============================================ */
+#mapControls {
+    position: fixed;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#mapControls.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.control-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-thick);
+    backdrop-filter: blur(var(--blur-high));
+    -webkit-backdrop-filter: blur(var(--blur-high));
+    color: var(--system-blue);
+    font-size: 22px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+    transition: transform 0.2s var(--spring-bouncy), background 0.2s;
+}
+
+.control-btn:hover {
+    background: var(--bg-elevated);
+}
+
+.control-btn:active {
+    transform: scale(0.9);
+}
+
+/* ============================================
+   BOTTOM SHEET (Apple Maps Multi-Stage)
+   ============================================ */
+#sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--sheet-full);
+    background: var(--bg-secondary);
+    border-radius: var(--sheet-radius) var(--sheet-radius) 0 0;
+    z-index: 200;
+    box-shadow: 0 -12px 60px rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+    touch-action: none;
+}
+
+/* Handle Area */
+#sheetHandle {
+    width: 100%;
+    padding: 16px 0 8px;
+    display: flex;
+    justify-content: center;
+    cursor: grab;
+    flex-shrink: 0;
+}
+
+#sheetHandle:active {
+    cursor: grabbing;
+}
+
+.handle-bar {
+    width: 40px;
+    height: 5px;
+    background: var(--system-gray3);
+    border-radius: 3px;
+    transition: background 0.2s;
+}
+
+#sheetHandle:hover .handle-bar {
+    background: var(--system-gray2);
+}
+
+/* Sheet Header */
+#sheetHeader {
+    padding: 8px 24px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-shrink: 0;
+}
+
+.header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--system-green);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.live-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--system-green);
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--system-green);
+    animation: livePulse 2s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.9); }
+}
+
+#sheetTitle {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+#sortBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    color: var(--label-primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#sortBtn:hover {
+    background: var(--bg-elevated);
+}
+
+/* Segment Control */
+#segmentControl {
+    margin: 8px 24px 20px;
+    background: var(--bg-tertiary);
+    padding: 4px;
+    border-radius: 14px;
+    display: flex;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.segment-btn {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--label-secondary);
+    position: relative;
+    z-index: 2;
+    cursor: pointer;
+    transition: color 0.3s;
+    user-select: none;
+}
+
+.segment-btn.active {
+    color: white;
+}
+
+.segment-btn[aria-selected="true"] {
+    color: white;
+}
+
+#segmentGlider {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    bottom: 4px;
+    width: calc(33.33% - 5.33px);
+    background: var(--system-blue);
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(10, 132, 255, 0.4);
+    transition: transform 0.4s var(--spring-snappy);
+    z-index: 1;
+}
+
+/* Venue List */
+#venueList {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 24px calc(var(--safe-bottom) + 24px);
+    overscroll-behavior: contain;
+}
+
+.venue-card {
+    background: var(--bg-tertiary);
+    padding: 16px;
+    border-radius: 18px;
+    display: flex;
+    gap: 14px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: transform 0.2s var(--spring-snappy), background 0.2s;
+    border: 1px solid transparent;
+}
+
+.venue-card:hover {
+    background: var(--bg-elevated);
+    transform: translateY(-2px);
+}
+
+.venue-card:active {
+    transform: scale(0.98);
+}
+
+.venue-card.selected {
+    border-color: var(--system-blue);
+    background: rgba(10, 132, 255, 0.1);
+}
+
+.venue-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    flex-shrink: 0;
+}
+
+.venue-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.venue-name {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.venue-meta {
+    font-size: 13px;
+    color: var(--label-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.venue-tags {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.venue-tag {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--label-secondary);
+}
+
+.venue-tag.happy-hour {
+    background: rgba(255, 159, 10, 0.2);
+    color: var(--system-orange);
+}
+
+.venue-tag.live {
+    background: rgba(48, 209, 88, 0.2);
+    color: var(--system-green);
+}
+
+.venue-crowd {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.crowd-value {
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.crowd-label {
+    font-size: 10px;
+    color: var(--label-tertiary);
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.crowd-bar {
+    width: 56px;
+    height: 4px;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.crowd-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s var(--spring-fluid);
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.empty-text {
+    font-size: 14px;
+    color: var(--label-secondary);
+}
+
+/* ============================================
+   DETAIL MODAL (Eventbrite Style)
+   ============================================ */
+#detailModal {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#detailModal.active {
+    pointer-events: auto;
+    opacity: 1;
+}
+
+#detailBackdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#detailModal.active #detailBackdrop {
+    opacity: 1;
+}
+
+#detailCard {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 85vh;
+    background: var(--bg-secondary);
+    border-radius: 32px 32px 0 0;
+    transform: translateY(100%);
+    transition: transform 0.5s var(--spring-default);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#detailModal.active #detailCard {
+    transform: translateY(0);
+}
+
+/* Detail Hero */
+.detail-hero {
+    height: 200px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.detail-hero-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, 
+        transparent 0%, 
+        rgba(0, 0, 0, 0.3) 50%,
+        var(--bg-secondary) 100%
+    );
+}
+
+#detailClose {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+#detailClose:hover {
+    transform: scale(1.1);
+}
+
+/* Detail Content */
+.detail-content {
+    padding: 24px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.detail-title {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+}
+
+.detail-subtitle {
+    font-size: 15px;
+    color: var(--label-secondary);
+    margin-bottom: 24px;
+}
+
+/* Crowd Meter Card */
+.crowd-meter-card {
+    background: var(--bg-tertiary);
+    padding: 20px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.crowd-icon {
+    font-size: 36px;
+}
+
+.crowd-info {
+    flex: 1;
+}
+
+.crowd-meter-label {
+    font-size: 12px;
+    color: var(--label-tertiary);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.crowd-meter-bar {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+#detailCrowdFill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.8s var(--spring-fluid);
+}
+
+.crowd-meter-value {
+    font-size: 28px;
+    font-weight: 800;
+}
+
+/* Action Grid */
+.action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.action-btn {
+    padding: 16px;
+    border-radius: 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--glass-border);
+    color: var(--label-primary);
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.action-btn:hover {
+    background: var(--bg-elevated);
+}
+
+.action-btn:active {
+    transform: scale(0.96);
+}
+
+.action-btn.primary {
+    background: var(--system-blue);
+    border-color: transparent;
+}
+
+.action-btn.primary:hover {
+    background: #0070E0;
+}
+
+.action-icon {
+    font-size: 24px;
+}
+
+/* Detail Footer */
+.detail-footer {
+    font-size: 13px;
+    color: var(--label-tertiary);
+    text-align: center;
+    padding-top: 16px;
+    border-top: 1px solid var(--glass-border);
+}
+
+/* ============================================
+   SAFETY FAB
+   ============================================ */
+#safetyFab {
+    position: fixed;
+    bottom: calc(var(--safe-bottom) + 220px);
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 20px;
+    background: var(--system-green);
+    color: white;
+    font-size: 28px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(48, 209, 88, 0.45);
+    z-index: 190;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.4s var(--spring-bouncy), background 0.3s;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#safetyFab.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#safetyFab:hover {
+    transform: scale(1.05);
+}
+
+#safetyFab:active {
+    transform: scale(0.95);
+}
+
+#safetyFab.tracking {
+    background: var(--system-orange);
+    animation: trackingPulse 2s ease-in-out infinite;
+}
+
+@keyframes trackingPulse {
+    0%, 100% { box-shadow: 0 10px 40px rgba(255, 159, 10, 0.45); }
+    50% { box-shadow: 0 10px 60px rgba(255, 159, 10, 0.7); }
+}
+
+/* ============================================
+   TOAST NOTIFICATIONS
+   ============================================ */
+#toast {
+    position: fixed;
+    top: calc(var(--safe-top) + 140px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    padding: 14px 24px;
+    background: var(--glass-thick);
+    backdrop-filter: blur(var(--blur-high));
+    -webkit-backdrop-filter: blur(var(--blur-high));
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    z-index: 9000;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.4s var(--spring-bouncy);
+}
+
+#toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+#toast.success {
+    border-color: var(--system-green);
+}
+
+#toast.error {
+    border-color: var(--system-red);
+}
+
+#toast.info {
+    border-color: var(--system-blue);
+}
+
+#toast.warning {
+    border-color: var(--system-orange);
+}
+
+/* ============================================
+   OFFLINE INDICATOR
+   ============================================ */
+#offlineBar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 24px calc(var(--safe-bottom) + 12px);
+    background: var(--system-orange);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    z-index: 8000;
+    transform: translateY(100px);
+    transition: transform 0.4s var(--spring-snappy);
+}
+
+#offlineBar.show {
+    transform: translateY(0);
+}
+
+/* ============================================
+   SKELETON LOADING
+   ============================================ */
+.skeleton {
+    background: linear-gradient(90deg, 
+        var(--bg-tertiary) 25%, 
+        var(--bg-elevated) 50%, 
+        var(--bg-tertiary) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 8px;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+@media (max-width: 375px) {
+    #searchBar {
+        left: 12px;
+        right: 12px;
+    }
+    
+    #filterRow {
+        padding: 0 12px;
+    }
+    
+    .filter-chip {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+    
+    #sheetHeader {
+        padding: 8px 16px 16px;
+    }
+    
+    #venueList {
+        padding: 0 16px calc(var(--safe-bottom) + 24px);
+    }
+    
+    .detail-content {
+        padding: 20px;
+    }
+}
+
+/* Large screens */
+@media (min-width: 768px) {
+    #sheet {
+        max-width: 420px;
+        left: auto;
+        right: 24px;
+        border-radius: var(--sheet-radius);
+        height: calc(100vh - 120px);
+        bottom: 24px;
+    }
+    
+    #detailCard {
+        max-width: 480px;
+        left: auto;
+        right: 24px;
+        border-radius: 24px;
+        bottom: 24px;
+    }
+}
+    </style>
+</head>
+<body>
+
+    <!-- Splash Screen -->
+    <div id="splash" role="status" aria-live="polite" aria-label="Loading KROWD GUIDE">
+        <div id="particles"></div>
+        <svg id="splashLogo" width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+            <defs>
+                <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#0A84FF"/>
+                    <stop offset="100%" style="stop-color:#5E5CE6"/>
+                </linearGradient>
+            </defs>
+            <rect width="120" height="120" rx="30" fill="#000"/>
+            <text x="60" y="82" text-anchor="middle" fill="url(#logoGradient)" font-family="Inter, system-ui" font-weight="900" font-size="76">K</text>
+            <circle cx="92" cy="28" r="10" fill="#30D158"/>
+        </svg>
+        <p id="splashTagline">Know Before You Go.</p>
+        <div id="progressContainer">
+            <div id="progressBar"><div id="progressFill"></div></div>
+            <p id="progressText">Initializing...</p>
+        </div>
+    </div>
+
+    <!-- Main Map -->
+    <div id="map" role="application" aria-label="Interactive venue map"></div>
+
+    <!-- Apple Maps Floating Search Bar -->
+    <div id="searchBar" role="search">
+        <span id="searchIcon" aria-hidden="true">🔍</span>
+        <input type="text" id="searchInput" placeholder="Search venues..." aria-label="Search venues" autocomplete="off">
+        <div id="searchWeather" aria-label="Current weather">
+            <span id="weatherIcon">☀️</span>
+            <span id="weatherTemp">--°</span>
+        </div>
+    </div>
+
+    <!-- Filter Row -->
+    <div id="filterRow" role="tablist" aria-label="Filter venues">
+        <div id="filterScroll">
+            <button class="filter-chip active" data-filter="all" role="tab" aria-selected="true">All <span class="count" id="countAll">0</span></button>
+            <button class="filter-chip" data-filter="bar" role="tab" aria-selected="false">🍺 Bars <span class="count" id="countBar">0</span></button>
+            <button class="filter-chip" data-filter="restaurant" role="tab" aria-selected="false">🍽️ Food <span class="count" id="countFood">0</span></button>
+            <button class="filter-chip" data-filter="nightclub" role="tab" aria-selected="false">🎵 Clubs <span class="count" id="countClub">0</span></button>
+            <button class="filter-chip" data-filter="cafe" role="tab" aria-selected="false">☕ Coffee <span class="count" id="countCafe">0</span></button>
+            <button class="filter-chip" data-filter="quiet" role="tab" aria-selected="false">🤫 Quiet <span class="count" id="countQuiet">0</span></button>
+        </div>
+    </div>
+
+    <!-- Map Controls -->
+    <div id="mapControls" role="group" aria-label="Map controls">
+        <button class="control-btn" id="btnLocate" aria-label="Center on my location">◎</button>
+        <button class="control-btn" id="btnZoomIn" aria-label="Zoom in">+</button>
+        <button class="control-btn" id="btnZoomOut" aria-label="Zoom out">−</button>
+    </div>
+
+    <!-- Bottom Sheet (Apple Maps Multi-Stage) -->
+    <div id="sheet" role="region" aria-label="Venue list">
+        <div id="sheetHandle" role="button" aria-label="Drag to resize panel" tabindex="0">
+            <div class="handle-bar"></div>
+        </div>
+        
+        <div id="sheetHeader">
+            <div class="header-left">
+                <div class="live-badge" aria-live="polite">
+                    <span class="live-dot" aria-hidden="true"></span>
+                    <span>Live Data</span>
+                </div>
+                <h1 id="sheetTitle">Nearby Venues</h1>
+            </div>
+            <button id="sortBtn" aria-label="Sort venues">
+                <span id="sortIcon">📏</span>
+                <span id="sortText">Distance</span>
+            </button>
+        </div>
+
+        <div id="segmentControl" role="tablist" aria-label="Category selection">
+            <div id="segmentGlider" aria-hidden="true"></div>
+            <button class="segment-btn active" data-cat="activities" role="tab" aria-selected="true">Venues</button>
+            <button class="segment-btn" data-cat="transport" role="tab" aria-selected="false">Transport</button>
+            <button class="segment-btn" data-cat="safety" role="tab" aria-selected="false">Safety</button>
+        </div>
+
+        <div id="venueList" role="list" aria-label="List of venues">
+            <!-- Populated via JS -->
+        </div>
+    </div>
+
+    <!-- Detail Modal (Eventbrite Style) -->
+    <div id="detailModal" role="dialog" aria-modal="true" aria-labelledby="detailName">
+        <div id="detailBackdrop"></div>
+        <div id="detailCard">
+            <div class="detail-hero" id="detailHero">
+                <div class="detail-hero-gradient"></div>
+                <button id="detailClose" aria-label="Close details">✕</button>
+            </div>
+            <div class="detail-content">
+                <h2 class="detail-title" id="detailName">Venue Name</h2>
+                <p class="detail-subtitle" id="detailAddress">123 Main St • 0.2 mi away</p>
+                
+                <div class="crowd-meter-card">
+                    <div class="crowd-icon">👥</div>
+                    <div class="crowd-info">
+                        <div class="crowd-meter-label">Live Crowd Level</div>
+                        <div class="crowd-meter-bar">
+                            <div id="detailCrowdFill" style="width: 50%; background: var(--system-green);"></div>
+                        </div>
+                    </div>
+                    <div class="crowd-meter-value" id="detailCrowdValue">50%</div>
+                </div>
+
+                <div class="action-grid">
+                    <button class="action-btn primary" id="actionDirections" aria-label="Get directions">
+                        <span class="action-icon">🧭</span>
+                        <span>Directions</span>
+                    </button>
+                    <button class="action-btn" id="actionShare" aria-label="Share venue">
+                        <span class="action-icon">📤</span>
+                        <span>Share</span>
+                    </button>
+                    <button class="action-btn" id="actionRide" aria-label="Order a ride">
+                        <span class="action-icon">🚗</span>
+                        <span>Uber/Lyft</span>
+                    </button>
+                    <button class="action-btn" id="actionCall" aria-label="Call venue">
+                        <span class="action-icon">📞</span>
+                        <span>Call</span>
+                    </button>
+                </div>
+                
+                <p class="detail-footer">
+                    Real-time data from OpenStreetMap & KROWD algorithms
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Safety FAB -->
+    <button id="safetyFab" aria-label="Walk Me Home safety feature">🛡️</button>
+
+    <!-- Toast Notification -->
+    <div id="toast" role="alert" aria-live="assertive">
+        <span id="toastIcon">✓</span>
+        <span id="toastMessage">Notification</span>
+    </div>
+
+    <!-- Offline Indicator -->
+    <div id="offlineBar" role="alert" aria-live="assertive">
+        📴 You're offline — Some features may be limited
+    </div>
+
+<script>
+/* ============================================
+   KROWD GUIDE v7.1
+   Hybrid Navigation UI Engine
+   ============================================ */
+
+// Configuration
+const CONFIG = {
+    DEFAULT_LAT: 39.5296,
+    DEFAULT_LNG: -119.8138,
+    SEARCH_RADIUS: 1500,
+    TILE_URL: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    TILE_ATTRIBUTION: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    OVERPASS_API: 'https://overpass-api.de/api/interpreter',
+    WEATHER_API: 'https://api.open-meteo.com/v1/forecast',
+    NOMINATIM_API: 'https://nominatim.openstreetmap.org/reverse',
+    CACHE_DURATION: 30 * 60 * 1000,
+    RETRY_ATTEMPTS: 3,
+    RETRY_DELAY: 1000
+};
+
+// Global State
+const State = {
+    pos: { lat: CONFIG.DEFAULT_LAT, lng: CONFIG.DEFAULT_LNG },
+    category: 'activities',
+    filter: 'all',
+    sort: 'distance',
+    venues: { activities: [], transport: [], safety: [] },
+    currentVenue: null,
+    isTracking: false,
+    isOnline: navigator.onLine,
+    searchQuery: '',
+    locationName: 'Reno, NV'
+};
+
+// Haptic Feedback Engine
+const Haptics = {
+    supported: 'vibrate' in navigator,
+    light: () => Haptics.supported && navigator.vibrate(8),
+    medium: () => Haptics.supported && navigator.vibrate(20),
+    heavy: () => Haptics.supported && navigator.vibrate(40),
+    success: () => Haptics.supported && navigator.vibrate([10, 40, 10]),
+    error: () => Haptics.supported && navigator.vibrate([40, 80, 40]),
+    selection: () => Haptics.supported && navigator.vibrate(5)
+};
+
+// Toast Notification System
+const Toast = {
+    timeout: null,
+    show(message, type = 'info') {
+        const toast = document.getElementById('toast');
+        const icon = document.getElementById('toastIcon');
+        const msg = document.getElementById('toastMessage');
+        
+        const icons = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
+        icon.textContent = icons[type] || 'ℹ';
+        msg.textContent = message;
+        
+        toast.className = 'show ' + type;
+        Haptics.light();
+        
+        clearTimeout(this.timeout);
+        this.timeout = setTimeout(() => toast.className = '', 3500);
+    }
+};
+
+// Fallback Data (Reno venues)
+const FallbackData = {
+    activities: [
+        { id: 1, lat: 39.5297, lng: -119.8143, name: 'The Depot Craft Brewery', type: 'bar', address: '325 E 4th St', crowd: 55 },
+        { id: 2, lat: 39.5282, lng: -119.8134, name: 'Death & Taxes', type: 'bar', address: '140 N Virginia St', crowd: 68 },
+        { id: 3, lat: 39.5301, lng: -119.8127, name: 'Rum Sugar Lime', type: 'bar', address: '1039 S Virginia St', crowd: 42 },
+        { id: 4, lat: 39.5267, lng: -119.8147, name: '1864 Tavern', type: 'bar', address: '25 N Virginia St', crowd: 61 },
+        { id: 5, lat: 39.5312, lng: -119.8138, name: "Louis' Basque Corner", type: 'restaurant', address: '301 E 4th St', crowd: 73 },
+        { id: 6, lat: 39.5288, lng: -119.8162, name: 'Wild River Grille', type: 'restaurant', address: '17 S Virginia St', crowd: 58 },
+        { id: 7, lat: 39.5305, lng: -119.8155, name: 'Hub Coffee Roasters', type: 'cafe', address: '136 West St', crowd: 35 },
+        { id: 8, lat: 39.5275, lng: -119.8175, name: 'Coffeebar', type: 'cafe', address: '682 Mt Rose St', crowd: 28 },
+        { id: 9, lat: 39.5320, lng: -119.8110, name: 'The Edge Nightclub', type: 'nightclub', address: '2707 S Virginia St', crowd: 82 },
+        { id: 10, lat: 39.5245, lng: -119.8125, name: 'Lex Nightclub', type: 'nightclub', address: 'Eldorado Resort Casino', crowd: 76 }
+    ],
+    transport: [
+        { id: 101, lat: 39.5290, lng: -119.8150, name: 'Downtown Parking', type: 'parking', address: 'Center St Garage', crowd: 45 },
+        { id: 102, lat: 39.5308, lng: -119.8132, name: '4th Street Station', type: 'bus_stop', address: 'RTC Transit Center', crowd: 30 },
+        { id: 103, lat: 39.5272, lng: -119.8140, name: 'Uber/Lyft Zone', type: 'rideshare', address: 'Virginia St & 2nd St', crowd: 25 }
+    ],
+    safety: [
+        { id: 201, lat: 39.5295, lng: -119.8165, name: 'Reno Police Downtown', type: 'police', address: '455 E 2nd St', phone: '(775) 334-2121', crowd: 0 },
+        { id: 202, lat: 39.5260, lng: -119.8180, name: 'SafeWalk Station', type: 'safe_point', address: 'City Plaza', crowd: 0 },
+        { id: 203, lat: 39.5340, lng: -119.8200, name: 'Renown Regional ER', type: 'hospital', address: '1155 Mill St', phone: '(775) 982-4100', crowd: 0 }
+    ]
+};
+
+// API Layer with Caching & Retry Logic
+const API = {
+    cache: new Map(),
+
+    async fetchWithRetry(url, options = {}, attempts = CONFIG.RETRY_ATTEMPTS) {
+        for (let i = 0; i < attempts; i++) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                
+                const response = await fetch(url, {
+                    ...options,
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response;
+            } catch (error) {
+                if (i === attempts - 1) throw error;
+                await new Promise(r => setTimeout(r, CONFIG.RETRY_DELAY * (i + 1)));
+            }
+        }
+    },
+
+    getCacheKey(type, lat, lng) {
+        return `${type}_${lat.toFixed(3)}_${lng.toFixed(3)}`;
+    },
+
+    getFromCache(key) {
+        const cached = this.cache.get(key);
+        if (cached && Date.now() - cached.timestamp < CONFIG.CACHE_DURATION) {
+            return cached.data;
+        }
+        return null;
+    },
+
+    setCache(key, data) {
+        this.cache.set(key, { data, timestamp: Date.now() });
+    },
+
+    async fetchOverpass(query) {
+        try {
+            const response = await this.fetchWithRetry(CONFIG.OVERPASS_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `data=${encodeURIComponent(query)}`
+            });
+            const data = await response.json();
+            return data.elements || [];
+        } catch (error) {
+            console.error('Overpass API error:', error);
+            return [];
+        }
+    },
+
+    async getVenues(lat, lng) {
+        const cacheKey = this.getCacheKey('venues', lat, lng);
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+
+        const query = `[out:json][timeout:20];
+            (node["amenity"~"bar|pub|nightclub|restaurant|cafe"](around:${CONFIG.SEARCH_RADIUS},${lat},${lng}););
+            out body;`;
+        
+        const raw = await this.fetchOverpass(query);
+        const venues = raw
+            .map(n => this.formatVenue(n, 'activity'))
+            .filter(v => v.name !== 'Unnamed Venue');
+        
+        this.setCache(cacheKey, venues);
+        return venues;
+    },
+
+    async getTransport(lat, lng) {
+        const query = `[out:json][timeout:15];
+            (node["amenity"="parking"](around:${CONFIG.SEARCH_RADIUS},${lat},${lng});
+             node["highway"="bus_stop"](around:${CONFIG.SEARCH_RADIUS},${lat},${lng});
+             node["amenity"="taxi"](around:${CONFIG.SEARCH_RADIUS},${lat},${lng}););
+            out body;`;
+        
+        const raw = await this.fetchOverpass(query);
+        return raw.map(n => this.formatVenue(n, 'transport'));
+    },
+
+    async getSafety(lat, lng) {
+        const query = `[out:json][timeout:15];
+            (node["amenity"~"police|hospital|pharmacy"](around:2500,${lat},${lng}););
+            out body;`;
+        
+        const raw = await this.fetchOverpass(query);
+        return raw.map(n => this.formatVenue(n, 'safety'));
+    },
+
+    formatVenue(node, group) {
+        const tags = node.tags || {};
+        const type = tags.amenity || tags.highway || 'venue';
+        
+        // Dynamic crowd simulation based on time
+        const now = new Date();
+        const hour = now.getHours();
+        const isWeekend = now.getDay() === 0 || now.getDay() >= 5;
+        
+        let baseCrowd = Math.floor(Math.random() * 25) + 15;
+        
+        if (type.match(/bar|pub|nightclub/)) {
+            if (hour >= 21 || hour < 2) baseCrowd += 45;
+            else if (hour >= 17) baseCrowd += 25;
+            if (isWeekend) baseCrowd += 20;
+        } else if (type === 'cafe') {
+            if (hour >= 7 && hour <= 11) baseCrowd += 35;
+            else if (hour >= 14 && hour <= 17) baseCrowd += 20;
+        } else if (type === 'restaurant') {
+            if ((hour >= 11 && hour <= 14) || (hour >= 18 && hour <= 21)) baseCrowd += 30;
+        }
+        
+        const crowd = Math.min(100, Math.max(5, baseCrowd + (Math.random() * 14 - 7)));
+
+        return {
+            id: node.id,
+            lat: node.lat,
+            lng: node.lon,
+            name: tags.name || (type === 'parking' ? 'Public Parking' : 'Unnamed Venue'),
+            type,
+            group,
+            crowd: Math.round(crowd),
+            address: tags['addr:street'] ? `${tags['addr:housenumber'] || ''} ${tags['addr:street']}`.trim() : 'Nearby',
+            phone: tags.phone || tags['contact:phone'],
+            website: tags.website,
+            fromOSM: true
+        };
+    },
+
+    async getWeather(lat, lng) {
+        try {
+            const response = await this.fetchWithRetry(
+                `${CONFIG.WEATHER_API}?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`
+            );
+            return await response.json();
+        } catch (error) {
+            console.error('Weather API error:', error);
+            return null;
+        }
+    },
+
+    getWeatherIcon(code) {
+        if (code === 0) return '☀️';
+        if (code <= 3) return '🌤️';
+        if (code <= 48) return '🌫️';
+        if (code <= 67) return '🌧️';
+        if (code <= 77) return '❄️';
+        if (code >= 80) return '⛈️';
+        return '☁️';
+    },
+
+    async reverseGeocode(lat, lng) {
+        try {
+            const response = await this.fetchWithRetry(
+                `${CONFIG.NOMINATIM_API}?lat=${lat}&lon=${lng}&format=json`,
+                { headers: { 'User-Agent': 'KROWD-GUIDE/7.1' } }
+            );
+            const data = await response.json();
+            return data.address?.city || data.address?.town || data.address?.village || 'Unknown Location';
+        } catch (error) {
+            return 'Reno';
+        }
+    }
+};
+
+// Data Module
+const Data = {
+    simulationInterval: null,
+
+    updateCrowds() {
+        ['activities', 'transport', 'safety'].forEach(cat => {
+            State.venues[cat].forEach(venue => {
+                const variance = (Math.random() * 8) - 4;
+                venue.crowd = Math.min(100, Math.max(5, venue.crowd + variance));
+            });
+        });
+    },
+
+    startSimulation() {
+        this.simulationInterval = setInterval(() => {
+            this.updateCrowds();
+            UI.renderVenueList();
+            MapCtrl.updateMarkers();
+        }, 45000);
+    }
+};
+
+// Splash Screen Animations
+const Splash = {
+    particles: [],
+
+    createParticles() {
+        const container = document.getElementById('particles');
+        for (let i = 0; i < 35; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = `${Math.random() * 100}%`;
+            particle.style.top = `${Math.random() * 100}%`;
+            container.appendChild(particle);
+            this.particles.push(particle);
+        }
+    },
+
+    animate() {
+        this.createParticles();
+        
+        const tl = gsap.timeline();
+        
+        // Animate particles
+        tl.to(this.particles, {
+            opacity: 0.6,
+            duration: 0.5,
+            stagger: { amount: 0.6, from: 'random' }
+        });
+
+        // Float particles
+        this.particles.forEach((p, i) => {
+            gsap.to(p, {
+                y: -80 - Math.random() * 80,
+                x: (Math.random() - 0.5) * 60,
+                duration: 3 + Math.random() * 3,
+                repeat: -1,
+                yoyo: true,
+                ease: 'sine.inOut',
+                delay: i * 0.08
+            });
+        });
+
+        // Logo animation
+        tl.to('#splashLogo', {
+            opacity: 1,
+            scale: 1,
+            duration: 0.8,
+            ease: 'back.out(1.7)'
+        }, 0.3);
+
+        // Tagline
+        tl.to('#splashTagline', {
+            opacity: 1,
+            y: 0,
+            duration: 0.6,
+            ease: 'power3.out'
+        }, 0.7);
+
+        // Progress container
+        tl.to('#progressContainer', {
+            opacity: 1,
+            duration: 0.4
+        }, 1);
+    },
+
+    updateProgress(value) {
+        gsap.to('#progressFill', { width: `${value}%`, duration: 0.4, ease: 'power2.out' });
+    },
+
+    updateStatus(text) {
+        document.getElementById('progressText').textContent = text;
+    },
+
+    hide() {
+        return new Promise(resolve => {
+            const tl = gsap.timeline({ onComplete: resolve });
+            
+            tl.to(this.particles, {
+                opacity: 0,
+                duration: 0.3,
+                stagger: { amount: 0.2, from: 'random' }
+            })
+            .to('#progressContainer', { opacity: 0, duration: 0.3 }, 0)
+            .to('#splashTagline', { opacity: 0, y: -10, duration: 0.3 }, 0.1)
+            .to('#splashLogo', { opacity: 0, scale: 0.9, duration: 0.4, ease: 'power2.in' }, 0.2)
+            .add(() => document.getElementById('splash').classList.add('hidden'));
+        });
+    }
+};
+
+// Map Controller
+const MapCtrl = {
+    map: null,
+    userMarker: null,
+    clusterGroup: null,
+    selectedMarkerId: null,
+
+    init() {
+        this.map = L.map('map', {
+            zoomControl: false,
+            attributionControl: true,
+            preferCanvas: true
+        }).setView([State.pos.lat, State.pos.lng], 15);
+
+        L.tileLayer(CONFIG.TILE_URL, {
+            maxZoom: 19,
+            attribution: CONFIG.TILE_ATTRIBUTION
+        }).addTo(this.map);
+
+        // User marker
+        const userIcon = L.divIcon({
+            className: 'user-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+        this.userMarker = L.marker([State.pos.lat, State.pos.lng], { icon: userIcon }).addTo(this.map);
+
+        // Cluster group
+        this.clusterGroup = L.markerClusterGroup({
+            maxClusterRadius: 50,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+            iconCreateFunction: (cluster) => {
+                const count = cluster.getChildCount();
+                let size = 'small';
+                if (count > 10) size = 'medium';
+                if (count > 25) size = 'large';
+                return L.divIcon({
+                    html: `<div>${count}</div>`,
+                    className: `marker-cluster marker-cluster-${size}`,
+                    iconSize: [40, 40]
+                });
+            }
+        });
+        this.map.addLayer(this.clusterGroup);
+
+        // Show map
+        document.getElementById('map').classList.add('visible');
+    },
+
+    updateMarkers() {
+        this.clusterGroup.clearLayers();
+        
+        let venues = State.venues[State.category];
+        
+        // Apply filter
+        if (State.filter !== 'all') {
+            if (State.filter === 'quiet') {
+                venues = venues.filter(v => v.crowd < 40);
+            } else {
+                venues = venues.filter(v => v.type.includes(State.filter));
+            }
+        }
+        
+        // Apply search
+        if (State.searchQuery) {
+            const query = State.searchQuery.toLowerCase();
+            venues = venues.filter(v => 
+                v.name.toLowerCase().includes(query) || 
+                v.address.toLowerCase().includes(query)
+            );
+        }
+
+        venues.forEach(v => {
+            let crowdLevel = 'low';
+            if (v.crowd > 40) crowdLevel = 'mid';
+            if (v.crowd > 70) crowdLevel = 'high';
+            
+            let pinClass = crowdLevel;
+            if (v.group === 'transport') pinClass = 'transport';
+            if (v.group === 'safety') pinClass = 'safety';
+
+            const emoji = this.getEmoji(v.type);
+
+            const icon = L.divIcon({
+                className: `venue-marker ${State.currentVenue?.id === v.id ? 'selected' : ''}`,
+                html: `<div class="marker-pin ${pinClass}"><span class="marker-emoji">${emoji}</span></div>`,
+                iconSize: [48, 48],
+                iconAnchor: [24, 48]
+            });
+
+            const marker = L.marker([v.lat, v.lng], { icon });
+            marker.on('click', () => {
+                Haptics.light();
+                UI.openDetail(v);
+            });
+            this.clusterGroup.addLayer(marker);
+        });
+    },
+
+    getEmoji(type) {
+        const map = {
+            bar: '🍺', pub: '🍺', restaurant: '🍽️', cafe: '☕', nightclub: '🎵',
+            parking: '🅿️', bus_stop: '🚌', taxi: '🚕', rideshare: '🚗',
+            police: '👮', hospital: '🏥', pharmacy: '💊', safe_point: '🛡️'
+        };
+        return map[type] || '📍';
+    },
+
+    flyTo(lat, lng, zoom = 17) {
+        this.map.flyTo([lat, lng], zoom, { duration: 0.8 });
+    },
+
+    centerOnUser() {
+        Haptics.medium();
+        this.flyTo(State.pos.lat, State.pos.lng, 16);
+    }
+};
+
+// UI Controller
+const UI = {
+    sheetDraggable: null,
+    sheetStops: [],
+
+    init() {
+        this.initSheetDraggable();
+        this.initEventListeners();
+        this.updateTime();
+        setInterval(() => this.updateTime(), 30000);
+    },
+
+    initSheetDraggable() {
+        const sheet = document.getElementById('sheet');
+        const h = window.innerHeight;
+        
+        // Snap points: Collapsed (~200px visible), Half (50vh), Full (90vh)
+        this.sheetStops = [h - 200, h * 0.5, h * 0.1];
+        
+        gsap.set(sheet, { y: this.sheetStops[0] });
+
+        if (typeof Draggable !== 'undefined') {
+            this.sheetDraggable = Draggable.create(sheet, {
+                type: 'y',
+                bounds: { minY: h * 0.05, maxY: h - 100 },
+                inertia: true,
+                onDragStart: () => Haptics.light(),
+                onDragEnd: function() {
+                    let closest = UI.sheetStops[0];
+                    let minDiff = Infinity;
+                    
+                    UI.sheetStops.forEach(stop => {
+                        const diff = Math.abs(this.y - stop);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            closest = stop;
+                        }
+                    });
+                    
+                    gsap.to(this.target, {
+                        y: closest,
+                        duration: 0.5,
+                        ease: 'elastic.out(1, 0.8)'
+                    });
+                    
+                    Haptics.selection();
+                }
+            })[0];
+        }
+    },
+
+    initEventListeners() {
+        // Search input
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            State.searchQuery = e.target.value;
+            this.renderVenueList();
+            MapCtrl.updateMarkers();
+        });
+
+        // Filter chips
+        document.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.addEventListener('click', () => App.setFilter(chip.dataset.filter));
+        });
+
+        // Segment buttons
+        document.querySelectorAll('.segment-btn').forEach(btn => {
+            btn.addEventListener('click', () => App.setCategory(btn.dataset.cat));
+        });
+
+        // Map controls
+        document.getElementById('btnLocate').addEventListener('click', () => MapCtrl.centerOnUser());
+        document.getElementById('btnZoomIn').addEventListener('click', () => MapCtrl.map.zoomIn());
+        document.getElementById('btnZoomOut').addEventListener('click', () => MapCtrl.map.zoomOut());
+
+        // Sort button
+        document.getElementById('sortBtn').addEventListener('click', () => App.toggleSort());
+
+        // Safety FAB
+        document.getElementById('safetyFab').addEventListener('click', () => Safety.toggle());
+
+        // Detail modal
+        document.getElementById('detailBackdrop').addEventListener('click', () => this.closeDetail());
+        document.getElementById('detailClose').addEventListener('click', () => this.closeDetail());
+        document.getElementById('actionDirections').addEventListener('click', () => this.getDirections());
+        document.getElementById('actionShare').addEventListener('click', () => this.shareVenue());
+        document.getElementById('actionRide').addEventListener('click', () => this.orderRide());
+        document.getElementById('actionCall').addEventListener('click', () => this.callVenue());
+
+        // Online/offline
+        window.addEventListener('online', () => {
+            State.isOnline = true;
+            document.getElementById('offlineBar').classList.remove('show');
+            Toast.show('Back online!', 'success');
+        });
+
+        window.addEventListener('offline', () => {
+            State.isOnline = false;
+            document.getElementById('offlineBar').classList.add('show');
+        });
+
+        // Keyboard navigation for sheet handle
+        document.getElementById('sheetHandle').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.toggleSheet();
+            }
+        });
+    },
+
+    toggleSheet() {
+        const sheet = document.getElementById('sheet');
+        const currentY = gsap.getProperty(sheet, 'y');
+        const nextStop = currentY > this.sheetStops[1] ? this.sheetStops[1] : this.sheetStops[0];
+        gsap.to(sheet, { y: nextStop, duration: 0.5, ease: 'power3.out' });
+        Haptics.medium();
+    },
+
+    updateTime() {
+        const now = new Date();
+        const hours = now.getHours() % 12 || 12;
+        const mins = now.getMinutes().toString().padStart(2, '0');
+        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+        // Could add time to UI if needed
+    },
+
+    updateWeather(data) {
+        if (data?.current) {
+            document.getElementById('weatherTemp').textContent = Math.round(data.current.temperature_2m) + '°';
+            document.getElementById('weatherIcon').textContent = API.getWeatherIcon(data.current.weather_code);
+        }
+    },
+
+    renderVenueList() {
+        const list = document.getElementById('venueList');
+        let venues = [...State.venues[State.category]];
+
+        // Apply filter
+        if (State.category === 'activities' && State.filter !== 'all') {
+            if (State.filter === 'quiet') {
+                venues = venues.filter(v => v.crowd < 40);
+            } else {
+                venues = venues.filter(v => v.type.includes(State.filter));
+            }
+        }
+
+        // Apply search
+        if (State.searchQuery) {
+            const query = State.searchQuery.toLowerCase();
+            venues = venues.filter(v => 
+                v.name.toLowerCase().includes(query) || 
+                v.address.toLowerCase().includes(query)
+            );
+        }
+
+        // Sort
+        if (State.sort === 'distance') {
+            venues.sort((a, b) => this.getDistance(a.lat, a.lng) - this.getDistance(b.lat, b.lng));
+        } else {
+            venues.sort((a, b) => b.crowd - a.crowd);
+        }
+
+        // Update filter counts
+        this.updateFilterCounts();
+
+        // Render
+        if (venues.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <div class="empty-title">No venues found</div>
+                    <div class="empty-text">Try adjusting your filters or search</div>
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = venues.map(v => this.renderVenueCard(v)).join('');
+
+        // Animate cards
+        gsap.fromTo(list.children, 
+            { opacity: 0, y: 20 },
+            { opacity: 1, y: 0, duration: 0.4, stagger: 0.05, ease: 'power3.out' }
+        );
+
+        // Add click handlers
+        list.querySelectorAll('.venue-card').forEach((card, i) => {
+            card.addEventListener('click', () => {
+                Haptics.light();
+                this.openDetail(venues[i]);
+            });
+        });
+    },
+
+    renderVenueCard(v) {
+        let crowdLevel = 'low';
+        let crowdColor = 'var(--system-green)';
+        if (v.crowd > 40) { crowdLevel = 'mid'; crowdColor = 'var(--system-orange)'; }
+        if (v.crowd > 70) { crowdLevel = 'high'; crowdColor = 'var(--system-red)'; }
+
+        const emoji = MapCtrl.getEmoji(v.type);
+        const distance = this.getDistance(v.lat, v.lng);
+        const distanceText = distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`;
+
+        const now = new Date();
+        const hour = now.getHours();
+        const isHappyHour = hour >= 15 && hour <= 19 && v.type?.match(/bar|pub|restaurant/);
+
+        return `
+            <div class="venue-card" role="listitem" tabindex="0">
+                <div class="venue-icon" style="background: linear-gradient(135deg, ${crowdColor}22, ${crowdColor}11)">
+                    ${emoji}
+                </div>
+                <div class="venue-info">
+                    <div class="venue-name">${this.escapeHtml(v.name)}</div>
+                    <div class="venue-meta">
+                        <span>${v.type}</span>
+                        <span>•</span>
+                        <span>${distanceText}</span>
+                    </div>
+                    ${isHappyHour ? '<div class="venue-tags"><span class="venue-tag happy-hour">Happy Hour</span></div>' : ''}
+                </div>
+                <div class="venue-crowd">
+                    <span class="crowd-value" style="color: ${crowdColor}">${v.crowd}%</span>
+                    <span class="crowd-label">Crowd</span>
+                    <div class="crowd-bar">
+                        <div class="crowd-fill" style="width: ${v.crowd}%; background: ${crowdColor}"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    updateFilterCounts() {
+        const all = State.venues.activities;
+        document.getElementById('countAll').textContent = all.length;
+        document.getElementById('countBar').textContent = all.filter(v => v.type?.includes('bar') || v.type?.includes('pub')).length;
+        document.getElementById('countFood').textContent = all.filter(v => v.type?.includes('restaurant')).length;
+        document.getElementById('countClub').textContent = all.filter(v => v.type?.includes('nightclub')).length;
+        document.getElementById('countCafe').textContent = all.filter(v => v.type?.includes('cafe')).length;
+        document.getElementById('countQuiet').textContent = all.filter(v => v.crowd < 40).length;
+    },
+
+    getDistance(lat, lng) {
+        const R = 6371;
+        const dLat = (lat - State.pos.lat) * Math.PI / 180;
+        const dLng = (lng - State.pos.lng) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(State.pos.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    },
+
+    escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    },
+
+    openDetail(venue) {
+        State.currentVenue = venue;
+        
+        let crowdLevel = 'low';
+        let crowdColor = 'var(--system-green)';
+        if (venue.crowd > 40) { crowdLevel = 'mid'; crowdColor = 'var(--system-orange)'; }
+        if (venue.crowd > 70) { crowdLevel = 'high'; crowdColor = 'var(--system-red)'; }
+
+        document.getElementById('detailHero').style.background = `linear-gradient(135deg, ${crowdColor}, var(--system-indigo))`;
+        document.getElementById('detailName').textContent = venue.name;
+        document.getElementById('detailAddress').textContent = `${venue.address} • ${this.getDistance(venue.lat, venue.lng).toFixed(1)}km away`;
+        document.getElementById('detailCrowdValue').textContent = venue.crowd + '%';
+        document.getElementById('detailCrowdValue').style.color = crowdColor;
+        document.getElementById('detailCrowdFill').style.width = venue.crowd + '%';
+        document.getElementById('detailCrowdFill').style.background = crowdColor;
+
+        document.getElementById('detailModal').classList.add('active');
+        
+        // Hide sheet
+        gsap.to('#sheet', { y: window.innerHeight + 100, duration: 0.4, ease: 'power3.in' });
+        
+        MapCtrl.flyTo(venue.lat, venue.lng);
+        MapCtrl.updateMarkers();
+        
+        Haptics.medium();
+    },
+
+    closeDetail() {
+        document.getElementById('detailModal').classList.remove('active');
+        State.currentVenue = null;
+        
+        // Restore sheet
+        gsap.to('#sheet', { y: this.sheetStops[0], duration: 0.5, ease: 'power3.out' });
+        
+        MapCtrl.updateMarkers();
+        Haptics.light();
+    },
+
+    getDirections() {
+        if (!State.currentVenue) return;
+        const v = State.currentVenue;
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${v.lat},${v.lng}&travelmode=walking`, '_blank');
+    },
+
+    shareVenue() {
+        if (!State.currentVenue) return;
+        const v = State.currentVenue;
+        const shareData = {
+            title: v.name,
+            text: `Check out ${v.name} on KROWD GUIDE! Currently at ${v.crowd}% capacity.`,
+            url: `https://maps.google.com/?q=${v.lat},${v.lng}`
+        };
+
+        if (navigator.share) {
+            navigator.share(shareData).catch(() => {});
+        } else {
+            navigator.clipboard.writeText(`${v.name}: ${shareData.url}`);
+            Toast.show('Copied to clipboard!', 'success');
+        }
+    },
+
+    orderRide() {
+        if (!State.currentVenue) return;
+        const v = State.currentVenue;
+        window.open(`https://m.uber.com/ul/?pickup=my_location&dropoff[latitude]=${v.lat}&dropoff[longitude]=${v.lng}`, '_blank');
+    },
+
+    callVenue() {
+        if (!State.currentVenue?.phone) {
+            Toast.show('No phone number available', 'info');
+            return;
+        }
+        window.location.href = `tel:${State.currentVenue.phone}`;
+    },
+
+    showUI() {
+        const tl = gsap.timeline();
+
+        tl.to('#searchBar', { 
+            opacity: 1, 
+            y: 0, 
+            duration: 0.6, 
+            ease: 'back.out(1.2)'
+        })
+        .to('#filterRow', { 
+            opacity: 1, 
+            y: 0, 
+            duration: 0.6, 
+            ease: 'back.out(1.2)' 
+        }, '-=0.4')
+        .to('#mapControls', { 
+            opacity: 1, 
+            duration: 0.4 
+        }, '-=0.3')
+        .to('#safetyFab', { 
+            opacity: 1, 
+            duration: 0.4 
+        }, '-=0.2');
+
+        document.getElementById('searchBar').classList.add('visible');
+        document.getElementById('filterRow').classList.add('visible');
+        document.getElementById('mapControls').classList.add('visible');
+        document.getElementById('safetyFab').classList.add('visible');
+    }
+};
+
+// Safety Module
+const Safety = {
+    tracking: false,
+    watchId: null,
+
+    toggle() {
+        Haptics.heavy();
+        this.tracking ? this.stop() : this.start();
+    },
+
+    start() {
+        this.tracking = true;
+        const fab = document.getElementById('safetyFab');
+        fab.classList.add('tracking');
+        fab.innerHTML = '🏠';
+        Toast.show('Walk Me Home activated', 'success');
+
+        if ('geolocation' in navigator) {
+            this.watchId = navigator.geolocation.watchPosition(
+                (pos) => {
+                    State.pos.lat = pos.coords.latitude;
+                    State.pos.lng = pos.coords.longitude;
+                    MapCtrl.userMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
+                },
+                (err) => console.error('GPS error:', err),
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+    },
+
+    stop() {
+        this.tracking = false;
+        const fab = document.getElementById('safetyFab');
+        fab.classList.remove('tracking');
+        fab.innerHTML = '🛡️';
+        Toast.show('Walk Me Home deactivated', 'info');
+
+        if (this.watchId) {
+            navigator.geolocation.clearWatch(this.watchId);
+            this.watchId = null;
+        }
+    }
+};
+
+// Main App Controller
+const App = {
+    async init() {
+        Splash.animate();
+
+        try {
+            Splash.updateProgress(15);
+            Splash.updateStatus('Getting your location...');
+
+            // Get location
+            try {
+                const pos = await this.getLocation();
+                State.pos.lat = pos.coords.latitude;
+                State.pos.lng = pos.coords.longitude;
+            } catch (e) {
+                console.warn('Using default location');
+            }
+
+            Splash.updateProgress(35);
+            Splash.updateStatus('Loading venues...');
+
+            // Fetch data in parallel
+            const [venues, transport, safety, weather, location] = await Promise.allSettled([
+                API.getVenues(State.pos.lat, State.pos.lng),
+                API.getTransport(State.pos.lat, State.pos.lng),
+                API.getSafety(State.pos.lat, State.pos.lng),
+                API.getWeather(State.pos.lat, State.pos.lng),
+                API.reverseGeocode(State.pos.lat, State.pos.lng)
+            ]);
+
+            // Process results with fallbacks
+            State.venues.activities = venues.status === 'fulfilled' && venues.value.length > 0 
+                ? venues.value 
+                : FallbackData.activities.map(v => ({ ...v, group: 'activity', fromOSM: false }));
+
+            State.venues.transport = transport.status === 'fulfilled' && transport.value.length > 0 
+                ? transport.value 
+                : FallbackData.transport.map(v => ({ ...v, group: 'transport', fromOSM: false }));
+
+            State.venues.safety = safety.status === 'fulfilled' && safety.value.length > 0 
+                ? safety.value 
+                : FallbackData.safety.map(v => ({ ...v, group: 'safety', fromOSM: false }));
+
+            Splash.updateProgress(65);
+            Splash.updateStatus('Building the map...');
+
+            MapCtrl.init();
+
+            Splash.updateProgress(85);
+            Splash.updateStatus('Almost ready...');
+
+            // Update weather
+            if (weather.status === 'fulfilled' && weather.value) {
+                UI.updateWeather(weather.value);
+            }
+
+            // Update location name
+            if (location.status === 'fulfilled') {
+                State.locationName = location.value;
+            }
+
+            Splash.updateProgress(100);
+            Splash.updateStatus('Welcome!');
+
+            await new Promise(r => setTimeout(r, 600));
+            await Splash.hide();
+
+            UI.init();
+            UI.renderVenueList();
+            MapCtrl.updateMarkers();
+            UI.showUI();
+
+            Data.startSimulation();
+
+            Toast.show(`Found ${State.venues.activities.length} venues nearby`, 'success');
+
+        } catch (error) {
+            console.error('Init error:', error);
+            
+            // Use fallback data
+            State.venues.activities = FallbackData.activities.map(v => ({ ...v, group: 'activity' }));
+            State.venues.transport = FallbackData.transport.map(v => ({ ...v, group: 'transport' }));
+            State.venues.safety = FallbackData.safety.map(v => ({ ...v, group: 'safety' }));
+
+            Splash.updateProgress(100);
+            await new Promise(r => setTimeout(r, 400));
+            await Splash.hide();
+
+            MapCtrl.init();
+            UI.init();
+            UI.renderVenueList();
+            MapCtrl.updateMarkers();
+            UI.showUI();
+
+            Toast.show('Using offline data', 'warning');
+        }
+    },
+
+    getLocation() {
+        return new Promise((resolve, reject) => {
+            if (!('geolocation' in navigator)) {
+                reject(new Error('No geolocation'));
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
+            });
+        });
+    },
+
+    setCategory(cat) {
+        Haptics.selection();
+        State.category = cat;
+
+        // Update segment UI
+        document.querySelectorAll('.segment-btn').forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-selected', 'false');
+        });
+        const activeBtn = document.querySelector(`.segment-btn[data-cat="${cat}"]`);
+        activeBtn.classList.add('active');
+        activeBtn.setAttribute('aria-selected', 'true');
+
+        // Move glider
+        const index = ['activities', 'transport', 'safety'].indexOf(cat);
+        document.getElementById('segmentGlider').style.transform = `translateX(${index * 100}%)`;
+
+        // Update title
+        const titles = { activities: 'Nearby Venues', transport: 'Transport', safety: 'Safety Zones' };
+        document.getElementById('sheetTitle').textContent = titles[cat];
+
+        // Show/hide filter bar
+        const filterRow = document.getElementById('filterRow');
+        if (cat === 'activities') {
+            filterRow.classList.add('visible');
+        } else {
+            filterRow.classList.remove('visible');
+        }
+
+        UI.renderVenueList();
+        MapCtrl.updateMarkers();
+    },
+
+    setFilter(filter) {
+        Haptics.selection();
+        State.filter = filter;
+
+        document.querySelectorAll('.filter-chip').forEach(c => {
+            c.classList.remove('active');
+            c.setAttribute('aria-selected', 'false');
+        });
+        const activeChip = document.querySelector(`.filter-chip[data-filter="${filter}"]`);
+        activeChip.classList.add('active');
+        activeChip.setAttribute('aria-selected', 'true');
+
+        UI.renderVenueList();
+        MapCtrl.updateMarkers();
+    },
+
+    toggleSort() {
+        Haptics.light();
+        State.sort = State.sort === 'distance' ? 'crowd' : 'distance';
+        
+        document.getElementById('sortIcon').textContent = State.sort === 'distance' ? '📏' : '👥';
+        document.getElementById('sortText').textContent = State.sort === 'distance' ? 'Distance' : 'Crowd';
+        
+        UI.renderVenueList();
+    }
+};
+
+// Initialize on load
+window.addEventListener('load', () => {
+    App.init();
+});
+
+// Service Worker Registration
+if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('SW registered'))
+        .catch(err => console.warn('SW registration failed:', err));
+}
+</script>
+</body>
+</html>
